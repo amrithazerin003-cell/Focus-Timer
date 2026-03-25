@@ -347,25 +347,25 @@ export default function Home() {
                 })}
               </div>
 
-              {/* Timer Display Area */}
-              <div className="relative mb-12 flex justify-center items-center">
+              {/* Timer Display Area — min-height matches ring so it never overflows into description */}
+              <div className="relative mb-8 flex justify-center items-center" style={{ minHeight: 240, minWidth: 240 }}>
                 
                 {/* Steam behind the numbers */}
                 <div className="absolute -top-16 left-1/2 -translate-x-1/2 z-0 opacity-80 mix-blend-screen">
                   <Steam active={isRunning} />
                 </div>
 
-                {/* Progress Ring */}
+                {/* Progress Ring — sized to match the container so it never overflows */}
                 <ProgressRing 
                   progress={getProgress()} 
-                  size={280} 
-                  strokeWidth={6}
-                  className="absolute z-0 scale-75 sm:scale-100" 
+                  size={240} 
+                  strokeWidth={4}
+                  className="absolute z-0" 
                 />
 
-                {/* Digits */}
-                <div className="relative z-10 flex flex-col items-center">
-                  <div className="font-mono text-6xl sm:text-7xl md:text-8xl font-medium tracking-tighter text-foreground drop-shadow-md">
+                {/* Digits — smaller font on mobile, normal on sm+ so they fit comfortably inside ring */}
+                <div className="relative z-10 flex flex-col items-center px-6">
+                  <div className="font-mono text-5xl sm:text-6xl md:text-7xl font-medium tracking-tighter text-foreground drop-shadow-md">
                     {formatTime(timeLeft)}
                   </div>
                   <div className="flex gap-8 mt-2 opacity-50 uppercase tracking-widest text-[10px] sm:text-xs font-bold font-sans">

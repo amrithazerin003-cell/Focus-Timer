@@ -23,14 +23,57 @@ const MODES: Record<Mode, { name: string; duration: number; icon: React.ElementT
   counter: { name: "Counter", duration: 0, icon: BarChart2, desc: "Open-ended session. Flow without limits." }
 };
 
+const TIMER_KEY = "tapri_timer_state";
+
+type TimerSnapshot = {
+  endTime: number;   // absolute ms timestamp (end for countdown, start for counter)
+  mode: Mode;
+  running: boolean;
+};
+
+function loadSnapshot(): TimerSnapshot | null {
+  try {
+    const raw = localStorage.getItem(TIMER_KEY);
+    return raw ? (JSON.parse(raw) as TimerSnapshot) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveSnapshot(snapshot: TimerSnapshot | null) {
+  if (snapshot === null) {
+    localStorage.removeItem(TIMER_KEY);
+  } else {
+    localStorage.setItem(TIMER_KEY, JSON.stringify(snapshot));
+  }
+}
+
 export default function Home() {
-  // --- State ---
+  // --- State (lazy-initialised from localStorage) ---
   const [theme, setTheme] = useLocalStorage<"dark" | "light">("tapri_theme", "dark");
   const [goals, setGoals] = useLocalStorage<Goal[]>("tapri_goals", []);
-  
-  const [activeMode, setActiveMode] = useState<Mode>("decoction");
-  const [timeLeft, setTimeLeft] = useState(MODES.decoction.duration);
-  const [isRunning, setIsRunning] = useState(false);
+
+  const [activeMode, setActiveMode] = useState<Mode>(() => {
+    const s = loadSnapshot();
+    return (s?.mode ?? "decoction");
+  });
+
+  const [timeLeft, setTimeLeft] = useState<number>(() => {
+    const s = loadSnapshot();
+    if (!s || !s.running) return MODES[s?.mode ?? "decoction"].duration;
+    const now = Date.now();
+    if (s.mode === "counter") return Math.floor((now - s.endTime) / 1000);
+    return Math.max(0, Math.ceil((s.endTime - now) / 1000));
+  });
+
+  const [isRunning, setIsRunning] = useState<boolean>(() => {
+    const s = loadSnapshot();
+    if (!s || !s.running) return false;
+    // Don't resume a finished countdown
+    if (s.mode !== "counter" && s.endTime <= Date.now()) return false;
+    return true;
+  });
+
   const [now, setNow] = useState(new Date());
   
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -39,6 +82,14 @@ export default function Home() {
 
   const timerRef = useRef<number | null>(null);
   const endTimeRef = useRef<number | null>(null);
+  // Synchronously restore endTimeRef on first render so the timer effect fires correctly
+  const _restoredRef = useRef(false);
+  if (!_restoredRef.current) {
+    _restoredRef.current = true;
+    const s = loadSnapshot();
+    if (s?.running) endTimeRef.current = s.endTime;
+  }
+
   const { playChime } = useAudio();
 
   // --- Effects ---
@@ -58,38 +109,52 @@ export default function Home() {
     return () => clearInterval(clockInt);
   }, []);
 
-  // Timer logic
+  // Timer logic — uses absolute timestamps so background/throttled tabs stay accurate
   useEffect(() => {
-    if (isRunning) {
-      const tick = () => {
-        if (!endTimeRef.current) return;
-        
-        const currentMs = Date.now();
-        
-        if (activeMode === "counter") {
-          // Count up
-          const elapsed = Math.floor((currentMs - endTimeRef.current) / 1000);
-          setTimeLeft(elapsed);
-        } else {
-          // Count down
-          const remaining = Math.max(0, Math.ceil((endTimeRef.current - currentMs) / 1000));
-          setTimeLeft(remaining);
-          
-          if (remaining <= 0) {
-            setIsRunning(false);
-            playChime();
-          }
+    const tick = () => {
+      if (!endTimeRef.current) return;
+      const currentMs = Date.now();
+      if (activeMode === "counter") {
+        setTimeLeft(Math.floor((currentMs - endTimeRef.current) / 1000));
+      } else {
+        const remaining = Math.max(0, Math.ceil((endTimeRef.current - currentMs) / 1000));
+        setTimeLeft(remaining);
+        if (remaining <= 0) {
+          setIsRunning(false);
+          saveSnapshot(null);
+          playChime();
         }
-      };
+      }
+    };
 
-      timerRef.current = window.setInterval(tick, 200); // 200ms for smooth updates
+    if (isRunning) {
+      timerRef.current = window.setInterval(tick, 200);
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
     }
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [isRunning, activeMode, playChime]);
 
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+  // Page Visibility API — re-sync display immediately when tab becomes visible again
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && isRunning && endTimeRef.current) {
+        const currentMs = Date.now();
+        if (activeMode === "counter") {
+          setTimeLeft(Math.floor((currentMs - endTimeRef.current) / 1000));
+        } else {
+          const remaining = Math.max(0, Math.ceil((endTimeRef.current - currentMs) / 1000));
+          setTimeLeft(remaining);
+          if (remaining <= 0) {
+            setIsRunning(false);
+            saveSnapshot(null);
+            playChime();
+          }
+        }
+      }
     };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
   }, [isRunning, activeMode, playChime]);
 
   // --- Handlers ---
@@ -100,22 +165,27 @@ export default function Home() {
     setIsRunning(false);
     setTimeLeft(MODES[mode].duration);
     endTimeRef.current = null;
+    saveSnapshot(null); // clear persisted state when user manually switches
   };
 
   const toggleTimer = () => {
     if (!isRunning) {
+      let endTime: number;
       if (activeMode === "counter") {
-        // Start counting up from current timeLeft
-        endTimeRef.current = Date.now() - (timeLeft * 1000);
+        endTime = Date.now() - (timeLeft * 1000);
       } else {
-        // Start counting down
         if (timeLeft <= 0) {
           setTimeLeft(MODES[activeMode].duration);
-          endTimeRef.current = Date.now() + (MODES[activeMode].duration * 1000);
+          endTime = Date.now() + (MODES[activeMode].duration * 1000);
         } else {
-          endTimeRef.current = Date.now() + (timeLeft * 1000);
+          endTime = Date.now() + (timeLeft * 1000);
         }
       }
+      endTimeRef.current = endTime;
+      saveSnapshot({ endTime, mode: activeMode, running: true });
+    } else {
+      // Pausing — clear persisted running state
+      saveSnapshot(null);
     }
     setIsRunning(!isRunning);
   };
@@ -124,6 +194,7 @@ export default function Home() {
     setIsRunning(false);
     setTimeLeft(MODES[activeMode].duration);
     endTimeRef.current = null;
+    saveSnapshot(null);
   };
 
   // Goal handlers

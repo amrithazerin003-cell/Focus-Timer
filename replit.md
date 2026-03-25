@@ -4,6 +4,25 @@
 
 pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
 
+## Artifacts
+
+### `artifacts/tapri` — Tapri.dev
+
+Cozy tea & coffee ritual productivity timer SPA (React + Vite). Frontend-only, no backend. Deployed at `/`.
+
+**Features:**
+- Countdown timer with 4 modes: Decoction (25min), Steep (5min), Infusion (15min), Counter (count-up)
+- SVG progress ring around the timer
+- Steam CSS animations when timer is running
+- Left sidebar with goals stored in localStorage
+- Sun/moon theme toggle (dark = default cozy room, light = warm cream)
+- Live clock + date in header
+- Web Audio API chime when timer completes
+
+**Stack:** React, Vite, Tailwind CSS v4, Framer Motion, Lucide React, date-fns
+
+**Colors:** Deep forest green (#2D4739), warm cream (#F2E8CF), sage green (#A3B18A), terracotta (#C97B4B)
+
 ## Stack
 
 - **Monorepo tool**: pnpm workspaces

@@ -1,0 +1,13 @@
+packages:
+  "framer-motion": "For smooth page transitions, steam animations, and interactive tab switches"
+  "date-fns": "For formatting the live clock and dates easily"
+  "clsx": "Utility for conditionally joining class names"
+  "tailwind-merge": "Utility to merge tailwind classes safely"
+  "lucide-react": "Already installed but explicit requirement for icons"
+
+images: []
+
+notes:
+  - "Fully local SPA, no external API calls required"
+  - "Uses localStorage for state persistence (goals, theme)"
+  - "Uses Web Audio API for timer completion sound"

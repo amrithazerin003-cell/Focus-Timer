@@ -1,0 +1,176 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: 'Inter', sans-serif;
+  --font-serif: 'Playfair Display', serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Color mapping */
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-card-border: hsl(var(--card-border));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary-hover: hsl(var(--primary-hover));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-border: hsl(var(--border));
+  --color-ring: hsl(var(--ring));
+
+  /* Custom shadows */
+  --shadow-glow: 0 0 20px 0px hsl(var(--primary) / 0.15);
+  --shadow-glass: 0 8px 32px 0 hsl(0 0% 0% / 0.2);
+}
+
+:root {
+  /* LIGHT MODE (Sun) */
+  /* Warm cream background: #F2E8CF */
+  --background: 42 50% 88%;
+  /* Deep green text: #2D4739 */
+  --foreground: 150 24% 23%;
+  
+  /* Lighter cream card: #FAF6ED */
+  --card: 42 60% 95%;
+  --card-foreground: 150 24% 23%;
+  --card-border: 150 24% 23% / 0.1;
+
+  /* Terracotta accent: #C97B4B */
+  --primary: 24 46% 54%;
+  --primary-foreground: 42 50% 88%;
+  --primary-hover: 22 52% 47%;
+
+  /* Sage green accent: #A3B18A */
+  --secondary: 84 18% 61%;
+  --secondary-foreground: 150 24% 23%;
+
+  /* Deep green accent: #588157 */
+  --accent: 118 17% 43%;
+  --accent-foreground: 42 50% 88%;
+
+  /* Soft sage text */
+  --muted: 84 18% 75%;
+  --muted-foreground: 150 20% 40%;
+
+  --border: 150 24% 23% / 0.1;
+  --ring: 24 46% 54%;
+}
+
+.dark {
+  /* DARK MODE (Moon) - Cozy Room Default */
+  /* Deep warm forest green: #2D4739 */
+  --background: 150 24% 23%;
+  /* Warm cream text: #F2E8CF */
+  --foreground: 42 50% 88%;
+  
+  /* Slightly lighter dark green for sidebar/cards: #344E41 */
+  --card: 153 21% 28%;
+  --card-foreground: 42 50% 88%;
+  --card-border: 42 50% 88% / 0.1;
+
+  /* Terracotta accent: #C97B4B */
+  --primary: 24 46% 54%;
+  --primary-foreground: 42 50% 88%;
+  --primary-hover: 22 52% 47%;
+
+  /* Sage green accent: #A3B18A */
+  --secondary: 84 18% 61%;
+  --secondary-foreground: 150 24% 23%;
+
+  /* Deep green accent: #588157 */
+  --accent: 118 17% 43%;
+  --accent-foreground: 42 50% 88%;
+
+  /* Soft muted text */
+  --muted: 153 21% 35%;
+  --muted-foreground: 84 18% 61%;
+
+  --border: 42 50% 88% / 0.1;
+  --ring: 24 46% 54%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground transition-colors duration-500 ease-in-out;
+  }
+
+  /* Custom Scrollbar for a premium feel */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/30 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
+}
+
+@layer utilities {
+  .bg-cozy-room {
+    background-image: 
+      radial-gradient(ellipse at 50% 100%, hsl(var(--primary) / 0.35) 0%, transparent 55%),
+      radial-gradient(ellipse at 20% 80%, hsl(24 60% 45% / 0.18) 0%, transparent 40%),
+      radial-gradient(ellipse at 80% 80%, hsl(24 60% 45% / 0.12) 0%, transparent 40%),
+      radial-gradient(ellipse at 50% 50%, hsl(var(--secondary) / 0.06) 0%, transparent 70%),
+      radial-gradient(ellipse at 0% 0%, hsl(var(--accent) / 0.08) 0%, transparent 45%),
+      radial-gradient(ellipse at 100% 0%, hsl(var(--accent) / 0.06) 0%, transparent 45%);
+  }
+
+  .dark .bg-cozy-room {
+    background-image: 
+      radial-gradient(ellipse at 50% 110%, hsl(24 55% 38% / 0.4) 0%, transparent 55%),
+      radial-gradient(ellipse at 20% 90%, hsl(24 60% 35% / 0.25) 0%, transparent 40%),
+      radial-gradient(ellipse at 80% 90%, hsl(24 60% 35% / 0.2) 0%, transparent 40%),
+      radial-gradient(ellipse at 50% 50%, hsl(150 30% 18% / 0.4) 0%, transparent 70%),
+      radial-gradient(ellipse at 30% 20%, hsl(118 20% 25% / 0.3) 0%, transparent 40%),
+      radial-gradient(ellipse at 70% 20%, hsl(118 20% 22% / 0.25) 0%, transparent 40%);
+  }
+
+  .glass-panel {
+    @apply bg-card/80 backdrop-blur-xl border border-card-border shadow-glass;
+  }
+}
+
+/* Steam Animation Keyframes */
+@keyframes sway {
+  0%, 100% { transform: translateX(-2px) translateY(0) scale(1); opacity: 0; }
+  25% { transform: translateX(3px) translateY(-10px) scale(1.05); opacity: 0.5; }
+  50% { transform: translateX(-4px) translateY(-25px) scale(1.1); opacity: 0.3; }
+  75% { transform: translateX(2px) translateY(-40px) scale(1.15); opacity: 0.1; }
+  90% { transform: translateX(-1px) translateY(-50px) scale(1.2); opacity: 0; }
+}
+
+.steam-path {
+  animation: sway 4s infinite ease-in-out;
+  transform-origin: bottom center;
+}
+
+.steam-path:nth-child(2) {
+  animation-delay: -1.5s;
+  animation-duration: 4.5s;
+}
+
+.steam-path:nth-child(3) {
+  animation-delay: -3s;
+  animation-duration: 5s;
+}

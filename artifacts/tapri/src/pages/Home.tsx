@@ -95,6 +95,17 @@ export default function Home() {
   const [editingMode, setEditingMode] = useState<Mode | null>(null);
   const [editMinutes, setEditMinutes] = useState<string>("");
 
+  const [brewedToday, setBrewedToday] = useLocalStorage<{ date: string; seconds: number }>(
+    "tapri_brewed_today", { date: "", seconds: 0 }
+  );
+  const todayKey = format(new Date(), "yyyy-MM-dd");
+  const todaySeconds = brewedToday.date === todayKey ? brewedToday.seconds : 0;
+  const formatBrewedTime = (s: number) => {
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  };
+
   const [now, setNow] = useState(new Date());
   
   const [ritualComplete, setRitualComplete] = useState(false);
@@ -137,6 +148,13 @@ export default function Home() {
     setIsRunning(false);
     saveSnapshot({ mode: activeMode, endTime: 0, running: false });
     playChime();
+    // Accumulate today's brewed time
+    const secs = getDuration(activeMode);
+    setBrewedToday(prev => {
+      const key = format(new Date(), "yyyy-MM-dd");
+      const base = prev.date === key ? prev.seconds : 0;
+      return { date: key, seconds: base + secs };
+    });
     // Mark the top unfinished goal as done and move it to the completed section
     setGoals(prev => {
       const idx = prev.findIndex(g => !g.done);
@@ -379,6 +397,12 @@ export default function Home() {
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Today's Focus</h2>
               </div>
+              {todaySeconds > 0 && (
+                <p className="text-xs text-muted-foreground mb-3 px-1">
+                  ☕ Today's Brewed Time: <span className="text-foreground font-medium">{formatBrewedTime(todaySeconds)}</span>
+                </p>
+              )}
+
               <button 
                 onClick={() => setIsAddingGoal(true)}
                 className="w-full flex items-center gap-2 px-3 py-2 mb-3 text-sm text-muted-foreground hover:text-primary border border-dashed border-border hover:border-primary/40 rounded-lg transition-colors"

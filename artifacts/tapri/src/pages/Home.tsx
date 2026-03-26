@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Coffee, Hourglass, Thermometer, BarChart2, 
   Sun, Moon, Plus, CheckCircle2, Circle, Trash2, 
-  Menu, X, Heart
+  Menu, X, Heart, GripVertical
 } from "lucide-react";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { useAudio } from "@/hooks/use-audio";
@@ -246,6 +246,45 @@ export default function Home() {
     setGoals(prev => prev.filter(g => g.id !== id));
   };
 
+  // --- Drag-and-drop reordering ---
+  const dragFromRef = useRef<number | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+
+  const handleDragStart = (e: React.DragEvent, idx: number, id: string) => {
+    dragFromRef.current = idx;
+    setDraggingId(id);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverIdx(idx);
+  };
+
+  const handleDrop = (e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    const from = dragFromRef.current;
+    if (from !== null && from !== idx) {
+      setGoals(prev => {
+        const updated = [...prev];
+        const [moved] = updated.splice(from, 1);
+        updated.splice(idx, 0, moved);
+        return updated;
+      });
+    }
+    dragFromRef.current = null;
+    setDraggingId(null);
+    setDragOverIdx(null);
+  };
+
+  const handleDragEnd = () => {
+    dragFromRef.current = null;
+    setDraggingId(null);
+    setDragOverIdx(null);
+  };
+
   // --- Formatting ---
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
@@ -340,29 +379,55 @@ export default function Home() {
                 </form>
               )}
 
-              <ul className="space-y-2">
+              <ul className="space-y-1">
                 <AnimatePresence>
-                  {goals.map(goal => (
-                    <motion.li 
+                  {goals.map((goal, idx) => (
+                    <motion.li
                       key={goal.id}
-                      initial={{ opacity: 0, y: -10 }}
+                      initial={{ opacity: 0, y: -8 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, height: 0 }}
-                      className="group flex items-start gap-3 p-2 -mx-2 rounded-lg hover:bg-foreground/5 transition-colors"
+                      draggable
+                      onDragStart={(e) => handleDragStart(e as unknown as React.DragEvent, idx, goal.id)}
+                      onDragOver={(e) => handleDragOver(e as unknown as React.DragEvent, idx)}
+                      onDrop={(e) => handleDrop(e as unknown as React.DragEvent, idx)}
+                      onDragEnd={handleDragEnd}
+                      className={cn(
+                        "group flex items-start gap-2 p-2 -mx-2 rounded-lg transition-all duration-150 cursor-default select-none",
+                        draggingId === goal.id
+                          ? "opacity-40"
+                          : "hover:bg-foreground/5",
+                        dragOverIdx === idx && draggingId !== goal.id
+                          ? "border-t border-primary/40"
+                          : "border-t border-transparent"
+                      )}
                     >
-                      <button 
+                      {/* Grip handle */}
+                      <span
+                        className="mt-0.5 shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors"
+                        aria-hidden
+                      >
+                        <GripVertical size={14} />
+                      </span>
+
+                      {/* Checkbox */}
+                      <button
                         onClick={() => toggleGoal(goal.id)}
                         className="mt-0.5 text-muted-foreground hover:text-primary shrink-0 transition-colors"
                       >
                         {goal.done ? <CheckCircle2 size={16} className="text-primary" /> : <Circle size={16} />}
                       </button>
+
+                      {/* Label */}
                       <span className={cn(
                         "text-sm flex-1 break-words transition-all duration-300",
                         goal.done ? "text-muted-foreground line-through" : "text-foreground"
                       )}>
                         {goal.text}
                       </span>
-                      <button 
+
+                      {/* Delete */}
+                      <button
                         onClick={() => deleteGoal(goal.id)}
                         className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive shrink-0 transition-all"
                       >

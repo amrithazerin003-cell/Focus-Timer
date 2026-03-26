@@ -29,6 +29,7 @@ type TimerSnapshot = {
   endTime: number;   // absolute ms timestamp (end for countdown, start for counter)
   mode: Mode;
   running: boolean;
+  pausedAt?: number; // remaining seconds at the moment of pause (countdown) or elapsed (counter)
 };
 
 function loadSnapshot(): TimerSnapshot | null {
@@ -60,7 +61,11 @@ export default function Home() {
 
   const [timeLeft, setTimeLeft] = useState<number>(() => {
     const s = loadSnapshot();
-    if (!s || !s.running) return MODES[s?.mode ?? "decoction"].duration;
+    if (!s) return MODES["decoction"].duration;
+    if (!s.running) {
+      // Restore paused time if available, otherwise show full duration
+      return s.pausedAt ?? MODES[s.mode].duration;
+    }
     const now = Date.now();
     if (s.mode === "counter") return Math.floor((now - s.endTime) / 1000);
     return Math.max(0, Math.ceil((s.endTime - now) / 1000));
@@ -188,8 +193,8 @@ export default function Home() {
       setRitualComplete(false);
       saveSnapshot({ endTime, mode: activeMode, running: true });
     } else {
-      // Pausing — keep mode but mark not running so refresh restores the mode
-      saveSnapshot({ mode: activeMode, endTime: endTimeRef.current ?? 0, running: false });
+      // Pausing — save current remaining time so refresh restores the exact paused position
+      saveSnapshot({ mode: activeMode, endTime: 0, running: false, pausedAt: timeLeft });
     }
     setIsRunning(!isRunning);
   };
@@ -504,7 +509,13 @@ export default function Home() {
                         : "bg-primary text-primary-foreground hover:bg-primary-hover shadow-glow hover:shadow-primary/30"
                     )}
                   >
-                    {isRunning ? "PAUSE RITUAL" : (ritualComplete ? "NEW RITUAL" : "START RITUAL")}
+                    {isRunning
+                      ? "PAUSE RITUAL"
+                      : ritualComplete
+                        ? "NEW RITUAL"
+                        : (activeMode === "counter" ? timeLeft > 0 : timeLeft < MODES[activeMode].duration)
+                          ? "RESUME RITUAL"
+                          : "START RITUAL"}
                   </button>
                 )}
 

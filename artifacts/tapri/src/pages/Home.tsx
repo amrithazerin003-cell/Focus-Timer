@@ -121,13 +121,13 @@ export default function Home() {
     setIsRunning(false);
     saveSnapshot({ mode: activeMode, endTime: 0, running: false });
     playChime();
-    // Mark the top unfinished goal as done
+    // Mark the top unfinished goal as done and move it to the completed section
     setGoals(prev => {
       const idx = prev.findIndex(g => !g.done);
       if (idx === -1) return prev;
       const updated = [...prev];
       updated[idx] = { ...updated[idx], done: true };
-      return updated;
+      return sortGoals(updated);
     });
     // Flash "Ritual Complete ☕" for 2.5 seconds
     setCompletionMessage("Ritual Complete ☕");
@@ -229,6 +229,12 @@ export default function Home() {
     saveSnapshot({ mode: activeMode, endTime: 0, running: false });
   };
 
+  // Keeps undone goals at the top, done at the bottom — preserving relative order within each group
+  const sortGoals = (list: Goal[]): Goal[] => [
+    ...list.filter(g => !g.done),
+    ...list.filter(g => g.done),
+  ];
+
   // Goal handlers
   const addGoal = (e: React.FormEvent) => {
     e.preventDefault();
@@ -239,7 +245,7 @@ export default function Home() {
   };
 
   const toggleGoal = (id: string) => {
-    setGoals(prev => prev.map(g => g.id === id ? { ...g, done: !g.done } : g));
+    setGoals(prev => sortGoals(prev.map(g => g.id === id ? { ...g, done: !g.done } : g)));
   };
 
   const deleteGoal = (id: string) => {

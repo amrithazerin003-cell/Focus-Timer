@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Coffee, Hourglass, Thermometer, BarChart2, 
   Sun, Moon, Plus, CheckCircle2, Circle, Trash2, 
-  Menu, X, Heart, GripVertical
+  Menu, X, Heart, GripVertical, Pencil, Check
 } from "lucide-react";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { useAudio } from "@/hooks/use-audio";
@@ -49,6 +49,15 @@ function saveSnapshot(snapshot: TimerSnapshot | null) {
   }
 }
 
+// Read a single mode's custom duration from localStorage — used in lazy initialisers before state exists
+function getCustomDuration(mode: Mode): number | undefined {
+  try {
+    const raw = localStorage.getItem("tapri_custom_durations");
+    const val = raw ? (JSON.parse(raw) as Partial<Record<Mode, number>>)[mode] : undefined;
+    return typeof val === "number" && val > 0 ? val : undefined;
+  } catch { return undefined; }
+}
+
 export default function Home() {
   // --- State (lazy-initialised from localStorage) ---
   const [theme, setTheme] = useLocalStorage<"dark" | "light">("tapri_theme", "dark");
@@ -61,10 +70,10 @@ export default function Home() {
 
   const [timeLeft, setTimeLeft] = useState<number>(() => {
     const s = loadSnapshot();
-    if (!s) return MODES["decoction"].duration;
+    if (!s) return getCustomDuration("decoction") ?? MODES["decoction"].duration;
     if (!s.running) {
-      // Restore paused time if available, otherwise show full duration
-      return s.pausedAt ?? MODES[s.mode].duration;
+      // Restore paused time if available, otherwise show the (possibly custom) full duration
+      return s.pausedAt ?? (getCustomDuration(s.mode) ?? MODES[s.mode].duration);
     }
     const now = Date.now();
     if (s.mode === "counter") return Math.floor((now - s.endTime) / 1000);
@@ -78,6 +87,13 @@ export default function Home() {
     if (s.mode !== "counter" && s.endTime <= Date.now()) return false;
     return true;
   });
+
+  const [customDurations, setCustomDurations] = useLocalStorage<Partial<Record<Mode, number>>>("tapri_custom_durations", {});
+  // Returns the effective duration (custom or default) in seconds for a given mode
+  const getDuration = (mode: Mode): number => customDurations[mode] ?? MODES[mode].duration;
+
+  const [editingMode, setEditingMode] = useState<Mode | null>(null);
+  const [editMinutes, setEditMinutes] = useState<string>("");
 
   const [now, setNow] = useState(new Date());
   
@@ -183,7 +199,7 @@ export default function Home() {
     setActiveMode(mode);
     setIsRunning(false);
     setRitualComplete(false);
-    setTimeLeft(MODES[mode].duration);
+    setTimeLeft(getDuration(mode));
     endTimeRef.current = null;
     // Preserve the selected mode so refresh restores it, but mark as not running
     saveSnapshot({ mode, endTime: 0, running: false });
@@ -196,8 +212,8 @@ export default function Home() {
         endTime = Date.now() - (timeLeft * 1000);
       } else {
         if (timeLeft <= 0) {
-          setTimeLeft(MODES[activeMode].duration);
-          endTime = Date.now() + (MODES[activeMode].duration * 1000);
+          setTimeLeft(getDuration(activeMode));
+          endTime = Date.now() + (getDuration(activeMode) * 1000);
         } else {
           endTime = Date.now() + (timeLeft * 1000);
         }
@@ -215,7 +231,7 @@ export default function Home() {
   const resetTimer = () => {
     setIsRunning(false);
     setRitualComplete(false);
-    setTimeLeft(MODES[activeMode].duration);
+    setTimeLeft(getDuration(activeMode));
     endTimeRef.current = null;
     // Keep mode so refresh still shows the right ritual
     saveSnapshot({ mode: activeMode, endTime: 0, running: false });
@@ -302,7 +318,7 @@ export default function Home() {
 
   const getProgress = () => {
     if (activeMode === "counter") return 100; // Full ring for counter
-    const total = MODES[activeMode].duration;
+    const total = getDuration(activeMode);
     if (total === 0) return 0;
     return (timeLeft / total) * 100;
   };
@@ -455,22 +471,80 @@ export default function Home() {
                 {(Object.keys(MODES) as Mode[]).map((key) => {
                   const mode = MODES[key];
                   const Icon = mode.icon;
+                  const isCounter = key === "counter";
+                  const isEditing = editingMode === key;
+                  const effectiveMins = Math.round(getDuration(key) / 60);
+
+                  const openEdit = (e: React.MouseEvent) => {
+                    e.stopPropagation();
+                    setEditingMode(key);
+                    setEditMinutes(String(effectiveMins));
+                  };
+
+                  const saveEdit = () => {
+                    const mins = parseInt(editMinutes, 10);
+                    if (!isNaN(mins) && mins > 0) {
+                      setCustomDurations(prev => ({ ...prev, [key]: mins * 60 }));
+                      // If we're currently on this mode and not running, update the display
+                      if (activeMode === key && !isRunning) {
+                        setTimeLeft(mins * 60);
+                      }
+                    }
+                    setEditingMode(null);
+                  };
+
                   return (
                     <li key={key}>
-                      <button 
-                        onClick={() => { handleModeSwitch(key); setSidebarOpen(false); }}
+                      <button
+                        onClick={() => { handleModeSwitch(key); setSidebarOpen(false); setEditingMode(null); }}
                         className={cn(
-                          "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
-                          activeMode === key 
-                            ? "bg-primary/10 text-primary font-medium" 
+                          "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors group",
+                          activeMode === key
+                            ? "bg-primary/10 text-primary font-medium"
                             : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
                         )}
                       >
-                        <Icon size={16} />
-                        {mode.name}
+                        <Icon size={16} className="shrink-0" />
+                        <span className="flex-1 text-left">{mode.name}</span>
+                        {!isCounter && (
+                          <span
+                            role="button"
+                            onClick={openEdit}
+                            className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity shrink-0"
+                            title={`Set custom duration`}
+                          >
+                            <Pencil size={11} />
+                          </span>
+                        )}
                       </button>
+
+                      {/* Inline duration editor */}
+                      {isEditing && (
+                        <div
+                          className="flex items-center gap-1 px-3 pb-2 mt-0.5"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <input
+                            autoFocus
+                            type="number"
+                            min={1}
+                            max={999}
+                            value={editMinutes}
+                            onChange={(e) => setEditMinutes(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter") saveEdit(); if (e.key === "Escape") setEditingMode(null); }}
+                            className="w-14 bg-background border border-border rounded px-2 py-0.5 text-xs text-foreground focus:outline-none focus:border-primary text-center"
+                          />
+                          <span className="text-xs text-muted-foreground">min</span>
+                          <button onClick={saveEdit} className="text-primary hover:text-primary-hover transition-colors ml-0.5">
+                            <Check size={13} />
+                          </button>
+                          <button onClick={() => setEditingMode(null)} className="text-muted-foreground hover:text-foreground transition-colors">
+                            <X size={13} />
+                          </button>
+                        </div>
+                      )}
                     </li>
-                  )
+                  );
                 })}
               </ul>
             </div>
@@ -602,7 +676,7 @@ export default function Home() {
                         ? "NEW RITUAL"
                         : (activeMode === "counter"
                             ? timeLeft > 0
-                            : timeLeft > 0 && timeLeft < MODES[activeMode].duration)
+                            : timeLeft > 0 && timeLeft < getDuration(activeMode))
                           ? "RESUME RITUAL"
                           : "START RITUAL"}
                   </button>
@@ -612,7 +686,7 @@ export default function Home() {
                   onClick={resetTimer}
                   className={cn(
                     "text-sm font-medium text-muted-foreground hover:text-foreground transition-all",
-                    (!isRunning && timeLeft === MODES[activeMode].duration && activeMode !== "counter") || (!isRunning && timeLeft === 0 && activeMode === "counter")
+                    (!isRunning && timeLeft === getDuration(activeMode) && activeMode !== "counter") || (!isRunning && timeLeft === 0 && activeMode === "counter")
                       ? "opacity-0 pointer-events-none" 
                       : "opacity-100"
                   )}

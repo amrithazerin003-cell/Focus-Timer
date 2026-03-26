@@ -82,6 +82,7 @@ export default function Home() {
   const [now, setNow] = useState(new Date());
   
   const [ritualComplete, setRitualComplete] = useState(false);
+  const [completionMessage, setCompletionMessage] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [newGoalText, setNewGoalText] = useState("");
   const [isAddingGoal, setIsAddingGoal] = useState(false);
@@ -115,6 +116,24 @@ export default function Home() {
     return () => clearInterval(clockInt);
   }, []);
 
+  // Shared completion logic — called whenever a countdown hits 0
+  const handleCountdownComplete = () => {
+    setIsRunning(false);
+    saveSnapshot({ mode: activeMode, endTime: 0, running: false });
+    playChime();
+    // Mark the top unfinished goal as done
+    setGoals(prev => {
+      const idx = prev.findIndex(g => !g.done);
+      if (idx === -1) return prev;
+      const updated = [...prev];
+      updated[idx] = { ...updated[idx], done: true };
+      return updated;
+    });
+    // Flash "Ritual Complete ☕" for 2.5 seconds
+    setCompletionMessage("Ritual Complete ☕");
+    setTimeout(() => setCompletionMessage(null), 2500);
+  };
+
   // Timer logic — uses absolute timestamps so background/throttled tabs stay accurate
   useEffect(() => {
     const tick = () => {
@@ -125,11 +144,7 @@ export default function Home() {
       } else {
         const remaining = Math.max(0, Math.ceil((endTimeRef.current - currentMs) / 1000));
         setTimeLeft(remaining);
-        if (remaining <= 0) {
-          setIsRunning(false);
-          saveSnapshot(null);
-          playChime();
-        }
+        if (remaining <= 0) handleCountdownComplete();
       }
     };
 
@@ -139,6 +154,7 @@ export default function Home() {
       if (timerRef.current) clearInterval(timerRef.current);
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRunning, activeMode, playChime]);
 
   // Page Visibility API — re-sync display immediately when tab becomes visible again
@@ -151,16 +167,13 @@ export default function Home() {
         } else {
           const remaining = Math.max(0, Math.ceil((endTimeRef.current - currentMs) / 1000));
           setTimeLeft(remaining);
-          if (remaining <= 0) {
-            setIsRunning(false);
-            saveSnapshot(null);
-            playChime();
-          }
+          if (remaining <= 0) handleCountdownComplete();
         }
       }
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRunning, activeMode, playChime]);
 
   // --- Handlers ---
@@ -466,17 +479,20 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Description */}
+              {/* Description / completion flash */}
               <p className="text-center text-sm text-muted-foreground mb-10 h-6">
                 <AnimatePresence mode="wait">
                   <motion.span
-                    key={ritualComplete ? "complete" : activeMode}
+                    key={completionMessage ?? (ritualComplete ? "complete" : activeMode)}
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -5 }}
-                    className={cn("block", ritualComplete && "text-primary font-medium")}
+                    className={cn(
+                      "block",
+                      (completionMessage || ritualComplete) && "text-primary font-medium"
+                    )}
                   >
-                    {ritualComplete ? "✦ Ritual Complete ✦" : MODES[activeMode].desc}
+                    {completionMessage ?? (ritualComplete ? "✦ Ritual Complete ✦" : MODES[activeMode].desc)}
                   </motion.span>
                 </AnimatePresence>
               </p>
@@ -513,7 +529,9 @@ export default function Home() {
                       ? "PAUSE RITUAL"
                       : ritualComplete
                         ? "NEW RITUAL"
-                        : (activeMode === "counter" ? timeLeft > 0 : timeLeft < MODES[activeMode].duration)
+                        : (activeMode === "counter"
+                            ? timeLeft > 0
+                            : timeLeft > 0 && timeLeft < MODES[activeMode].duration)
                           ? "RESUME RITUAL"
                           : "START RITUAL"}
                   </button>

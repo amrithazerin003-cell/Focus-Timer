@@ -76,6 +76,7 @@ export default function Home() {
 
   const [now, setNow] = useState(new Date());
   
+  const [ritualComplete, setRitualComplete] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [newGoalText, setNewGoalText] = useState("");
   const [isAddingGoal, setIsAddingGoal] = useState(false);
@@ -163,9 +164,11 @@ export default function Home() {
   const handleModeSwitch = (mode: Mode) => {
     setActiveMode(mode);
     setIsRunning(false);
+    setRitualComplete(false);
     setTimeLeft(MODES[mode].duration);
     endTimeRef.current = null;
-    saveSnapshot(null); // clear persisted state when user manually switches
+    // Preserve the selected mode so refresh restores it, but mark as not running
+    saveSnapshot({ mode, endTime: 0, running: false });
   };
 
   const toggleTimer = () => {
@@ -182,19 +185,30 @@ export default function Home() {
         }
       }
       endTimeRef.current = endTime;
+      setRitualComplete(false);
       saveSnapshot({ endTime, mode: activeMode, running: true });
     } else {
-      // Pausing — clear persisted running state
-      saveSnapshot(null);
+      // Pausing — keep mode but mark not running so refresh restores the mode
+      saveSnapshot({ mode: activeMode, endTime: endTimeRef.current ?? 0, running: false });
     }
     setIsRunning(!isRunning);
   };
 
   const resetTimer = () => {
     setIsRunning(false);
+    setRitualComplete(false);
     setTimeLeft(MODES[activeMode].duration);
     endTimeRef.current = null;
-    saveSnapshot(null);
+    // Keep mode so refresh still shows the right ritual
+    saveSnapshot({ mode: activeMode, endTime: 0, running: false });
+  };
+
+  const endRitual = () => {
+    setIsRunning(false);
+    setRitualComplete(true);
+    setTimeLeft(0);
+    endTimeRef.current = null;
+    saveSnapshot({ mode: activeMode, endTime: 0, running: false });
   };
 
   // Goal handlers
@@ -451,31 +465,49 @@ export default function Home() {
               <p className="text-center text-sm text-muted-foreground mb-10 h-6">
                 <AnimatePresence mode="wait">
                   <motion.span
-                    key={activeMode}
+                    key={ritualComplete ? "complete" : activeMode}
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -5 }}
-                    className="block"
+                    className={cn("block", ritualComplete && "text-primary font-medium")}
                   >
-                    {MODES[activeMode].desc}
+                    {ritualComplete ? "✦ Ritual Complete ✦" : MODES[activeMode].desc}
                   </motion.span>
                 </AnimatePresence>
               </p>
 
               {/* Controls */}
               <div className="flex flex-col items-center gap-4 w-full">
-                <button
-                  onClick={toggleTimer}
-                  className={cn(
-                    "w-full sm:w-64 py-4 rounded-2xl font-bold text-lg tracking-wide transition-all duration-300 transform active:scale-95 shadow-lg",
-                    isRunning 
-                      ? "bg-transparent border-2 border-primary text-primary hover:bg-primary/5" 
-                      : "bg-primary text-primary-foreground hover:bg-primary-hover shadow-glow hover:shadow-primary/30"
-                  )}
-                >
-                  {isRunning ? "PAUSE RITUAL" : "START RITUAL"}
-                </button>
-                
+                {/* Counter mode running: show PAUSE + END side by side */}
+                {activeMode === "counter" && isRunning ? (
+                  <div className="flex gap-3 w-full sm:w-64">
+                    <button
+                      onClick={toggleTimer}
+                      className="flex-1 py-4 rounded-2xl font-bold text-base tracking-wide transition-all duration-300 transform active:scale-95 bg-transparent border-2 border-primary text-primary hover:bg-primary/5"
+                    >
+                      PAUSE
+                    </button>
+                    <button
+                      onClick={endRitual}
+                      className="flex-1 py-4 rounded-2xl font-bold text-base tracking-wide transition-all duration-300 transform active:scale-95 bg-primary text-primary-foreground hover:bg-primary-hover shadow-lg"
+                    >
+                      END
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={toggleTimer}
+                    className={cn(
+                      "w-full sm:w-64 py-4 rounded-2xl font-bold text-lg tracking-wide transition-all duration-300 transform active:scale-95 shadow-lg",
+                      isRunning
+                        ? "bg-transparent border-2 border-primary text-primary hover:bg-primary/5"
+                        : "bg-primary text-primary-foreground hover:bg-primary-hover shadow-glow hover:shadow-primary/30"
+                    )}
+                  >
+                    {isRunning ? "PAUSE RITUAL" : (ritualComplete ? "NEW RITUAL" : "START RITUAL")}
+                  </button>
+                )}
+
                 <button 
                   onClick={resetTimer}
                   className={cn(

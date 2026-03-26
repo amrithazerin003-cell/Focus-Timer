@@ -471,7 +471,7 @@ export default function Home() {
                 {(Object.keys(MODES) as Mode[]).map((key) => {
                   const mode = MODES[key];
                   const Icon = mode.icon;
-                  const isCounter = key === "counter";
+                  const isCounter = key === "counter" || key === "infusion";
                   const isEditing = editingMode === key;
                   const effectiveMins = Math.round(getDuration(key) / 60);
 

@@ -656,17 +656,28 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Description */}
-              <p className="text-center text-sm text-muted-foreground mb-10 h-6">
+              {/* Description / inline completion message */}
+              <p className="text-center mb-10 h-6">
                 <AnimatePresence mode="wait">
                   <motion.span
-                    key={ritualComplete ? "complete" : activeMode}
+                    key={showToast ? "ritual-done" : ritualComplete ? "complete" : activeMode}
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -5 }}
-                    className={cn("block", ritualComplete && "text-primary font-medium")}
+                    className={cn(
+                      "block text-sm",
+                      showToast
+                        ? "text-primary font-semibold tracking-widest uppercase text-xs"
+                        : ritualComplete
+                          ? "text-primary font-medium"
+                          : "text-muted-foreground"
+                    )}
                   >
-                    {ritualComplete ? "✦ Ritual Complete ✦" : MODES[activeMode].desc}
+                    {showToast
+                      ? "Ritual Complete"
+                      : ritualComplete
+                        ? "✦ Ritual Complete ✦"
+                        : MODES[activeMode].desc}
                   </motion.span>
                 </AnimatePresence>
               </p>
@@ -742,12 +753,6 @@ export default function Home() {
         </main>
       </div>
 
-      {/* Toast notification — fixed bottom-center */}
-      {showToast && (
-        <div className="ritual-toast">
-          Ritual Complete
-        </div>
-      )}
     </div>
   );
 }

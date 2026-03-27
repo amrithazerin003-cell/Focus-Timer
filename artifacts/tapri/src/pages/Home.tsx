@@ -109,7 +109,8 @@ export default function Home() {
   const [now, setNow] = useState(new Date());
   
   const [ritualComplete, setRitualComplete] = useState(false);
-  const [completionMessage, setCompletionMessage] = useState<string | null>(null);
+  const [showToast, setShowToast] = useState(false);
+  const [highlightedGoalId, setHighlightedGoalId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [newGoalText, setNewGoalText] = useState("");
   const [isAddingGoal, setIsAddingGoal] = useState(false);
@@ -155,17 +156,22 @@ export default function Home() {
       const base = prev.date === key ? prev.seconds : 0;
       return { date: key, seconds: base + secs };
     });
-    // Mark the top unfinished goal as done and move it to the completed section
+    // Mark the top unfinished goal as done, capture its id for the highlight glow
     setGoals(prev => {
       const idx = prev.findIndex(g => !g.done);
+      if (idx !== -1) {
+        const goalId = prev[idx].id;
+        setHighlightedGoalId(goalId);
+        setTimeout(() => setHighlightedGoalId(null), 1200);
+      }
       if (idx === -1) return prev;
       const updated = [...prev];
       updated[idx] = { ...updated[idx], done: true };
       return sortGoals(updated);
     });
-    // Flash "Ritual Complete ☕" for 2.5 seconds
-    setCompletionMessage("Ritual Complete ☕");
-    setTimeout(() => setCompletionMessage(null), 2500);
+    // Show toast for 2.75 seconds
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 2750);
   };
 
   // Timer logic — uses absolute timestamps so background/throttled tabs stay accurate
@@ -439,10 +445,12 @@ export default function Home() {
                       onDrop={(e) => handleDrop(e as unknown as React.DragEvent, idx)}
                       onDragEnd={handleDragEnd}
                       className={cn(
-                        "group flex items-start gap-2 p-2 -mx-2 rounded-lg transition-all duration-150 cursor-default select-none",
+                        "group flex items-start gap-2 p-2 -mx-2 rounded-lg transition-all duration-500 cursor-default select-none",
                         draggingId === goal.id
                           ? "opacity-40"
-                          : "hover:bg-foreground/5",
+                          : highlightedGoalId === goal.id
+                            ? "bg-primary/15"
+                            : "hover:bg-foreground/5",
                         dragOverIdx === idx && draggingId !== goal.id
                           ? "border-t border-primary/40"
                           : "border-t border-transparent"
@@ -648,20 +656,17 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Description / completion flash */}
+              {/* Description */}
               <p className="text-center text-sm text-muted-foreground mb-10 h-6">
                 <AnimatePresence mode="wait">
                   <motion.span
-                    key={completionMessage ?? (ritualComplete ? "complete" : activeMode)}
+                    key={ritualComplete ? "complete" : activeMode}
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -5 }}
-                    className={cn(
-                      "block",
-                      (completionMessage || ritualComplete) && "text-primary font-medium"
-                    )}
+                    className={cn("block", ritualComplete && "text-primary font-medium")}
                   >
-                    {completionMessage ?? (ritualComplete ? "✦ Ritual Complete ✦" : MODES[activeMode].desc)}
+                    {ritualComplete ? "✦ Ritual Complete ✦" : MODES[activeMode].desc}
                   </motion.span>
                 </AnimatePresence>
               </p>
@@ -736,6 +741,13 @@ export default function Home() {
 
         </main>
       </div>
+
+      {/* Toast notification — fixed bottom-center */}
+      {showToast && (
+        <div className="ritual-toast">
+          Ritual Complete
+        </div>
+      )}
     </div>
   );
 }

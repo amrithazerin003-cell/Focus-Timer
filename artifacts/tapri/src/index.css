@@ -174,3 +174,36 @@
   animation-delay: -3s;
   animation-duration: 5s;
 }
+
+/* ── Ritual Complete Toast ── */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(16px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+@keyframes toast-out {
+  from { opacity: 1; transform: translateX(-50%) translateY(0); }
+  to   { opacity: 0; transform: translateX(-50%) translateY(16px); }
+}
+
+.ritual-toast {
+  position: fixed;
+  bottom: 2.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  background: #C97B4B;
+  color: #F2E8CF;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.875rem 2rem;
+  border-radius: 2rem;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.28), 0 2px 8px rgba(0,0,0,0.18);
+  white-space: nowrap;
+  animation: toast-in 0.35s cubic-bezier(0.22,1,0.36,1) forwards,
+             toast-out 0.35s cubic-bezier(0.55,0,1,0.45) 2.4s forwards;
+  pointer-events: none;
+  user-select: none;
+}

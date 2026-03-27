@@ -294,6 +294,15 @@ export default function Home() {
     setGoals(prev => prev.filter(g => g.id !== id));
   };
 
+  const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
+  const [editGoalText, setEditGoalText] = useState<string>("");
+
+  const updateGoal = (id: string, text: string) => {
+    const trimmed = text.trim();
+    if (trimmed) setGoals(prev => prev.map(g => g.id === id ? { ...g, text: trimmed } : g));
+    setEditingGoalId(null);
+  };
+
   // --- Drag-and-drop reordering ---
   const dragFromRef = useRef<number | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);

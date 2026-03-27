@@ -95,11 +95,13 @@ export default function Home() {
   const [editingMode, setEditingMode] = useState<Mode | null>(null);
   const [editMinutes, setEditMinutes] = useState<string>("");
 
-  const [brewedToday, setBrewedToday] = useLocalStorage<{ date: string; seconds: number }>(
-    "tapri_brewed_today", { date: "", seconds: 0 }
+  const [brewedToday, setBrewedToday] = useLocalStorage<{ date: string; seconds: number; count: number }>(
+    "tapri_brewed_today", { date: "", seconds: 0, count: 0 }
   );
   const todayKey = format(new Date(), "yyyy-MM-dd");
-  const todaySeconds = brewedToday.date === todayKey ? brewedToday.seconds : 0;
+  const isTodayData = brewedToday.date === todayKey;
+  const todaySeconds = isTodayData ? brewedToday.seconds : 0;
+  const todayCount = isTodayData ? (brewedToday.count ?? 0) : 0;
   const formatBrewedTime = (s: number) => {
     const h = Math.floor(s / 3600);
     const m = Math.floor((s % 3600) / 60);
@@ -153,8 +155,8 @@ export default function Home() {
     const secs = getDuration(activeMode);
     setBrewedToday(prev => {
       const key = format(new Date(), "yyyy-MM-dd");
-      const base = prev.date === key ? prev.seconds : 0;
-      return { date: key, seconds: base + secs };
+      const isToday = prev.date === key;
+      return { date: key, seconds: (isToday ? prev.seconds : 0) + secs, count: (isToday ? (prev.count ?? 0) : 0) + 1 };
     });
     // Mark the top unfinished goal as done, capture its id for the highlight glow
     setGoals(prev => {
@@ -404,9 +406,14 @@ export default function Home() {
                 <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Today's Focus</h2>
               </div>
               {todaySeconds > 0 && (
-                <p className="text-xs text-muted-foreground mb-3 px-1">
-                  ☕ Today's Brewed Time: <span className="text-foreground font-medium">{formatBrewedTime(todaySeconds)}</span>
-                </p>
+                <div className="mb-3 px-1 space-y-0.5">
+                  <p className="text-xs text-muted-foreground">
+                    ☕ Today's Brewed Time: <span className="text-foreground font-medium">{formatBrewedTime(todaySeconds)}</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground/70">
+                    {todayCount} {todayCount === 1 ? "ritual" : "rituals"} completed today
+                  </p>
+                </div>
               )}
 
               <button 
